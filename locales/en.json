@@ -1,0 +1,18 @@
+{
+
+
+"name": "custom menu v2",
+"description": "Don't you think this is cool?",
+
+"menus": "menus",
+
+"category": "custom menu v2",
+"category.jumptogithub": "Click here jump to Github",
+"category.readme": "readme",
+"category.set_menu": "set menu [name][list]",
+"category.delete_menu": "delete menu [name]",
+"category.error": "error",
+"category.menus_json": "menus json"
+
+
+}

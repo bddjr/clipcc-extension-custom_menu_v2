@@ -1,0 +1,17 @@
+{
+
+
+"name": "自定义菜单v2",
+"description": "不觉得这很酷吗？",
+
+"menus": "菜单",
+
+"category": "自定义菜单v2",
+"category.jumptogithub": "点此跳转到 Github",
+"category.readme": "阅读我",
+"category.set_menu": "设菜单 [name][list]",
+"category.delete_menu": "删除菜单 [name]",
+"category.error": "错误"
+
+
+}
