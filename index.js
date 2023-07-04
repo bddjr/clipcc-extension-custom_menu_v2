@@ -18,6 +18,8 @@ var err_msg = '';
 /** 用于计算删除菜单冷却时间的记录值，即上一次执行完的时候的时间戳 */
 var del_menu_cdtime_from = -Infinity;
 
+const data_block_name = "extension_bddjr_custom_menu_v2_data";
+
 //===========================================================================
 
 /**
@@ -128,14 +130,15 @@ function add_menu_block( name ){//2.0.0
 const blocks = [
 //===========================================================================
     // 创建一个不能被程序触发的积木，点击它就会直接跳转到github仓库地址。
-    {//2.0.0
+    {//2.0.1
         opcode: `${category_id}.jumptogithub`,
         messageId: `${category_id}.jumptogithub`,
         categoryId: category_id,
         type: undefined,
-        function: (args,util)=>{
-            if(window.confirm("你确定要跳转到github吗？")){ //弹窗确认
-                window.open("https://github.com/bddjr/clipcc-extension-custom_menu_v2");
+        function: ()=>{
+            let link = "https://github.com/bddjr/clipcc-extension-custom_menu_v2";
+            if( window.confirm(`你确定要跳转到Github吗？\n${link}`) ){ //弹窗确认
+                window.open( link );
             }
         }
     },
@@ -160,7 +163,7 @@ menu积木名称不支持以下符号，它们都将被替换为_
 \\n\\r\\t\\b\\f`
     },
 //===========================================================================
-    {//2.0.0
+    {//2.0.1
         opcode: `${category_id}.set_menu`,
         messageId: `${category_id}.set_menu`,
         categoryId: category_id,
@@ -179,7 +182,7 @@ menu积木名称不支持以下符号，它们都将被替换为_
             try{
                 let name = check_name( args.name );
 
-                if(menus.hasOwnProperty( name )){
+                if( Object.hasOwn( menus, name ) ){
                     menus[ name ] = check_menu_list( args.list );
                 }else{
                     menus[ name ] = check_menu_list( args.list );
@@ -191,7 +194,7 @@ menu积木名称不支持以下符号，它们都将被替换为_
         }
     },
 //===========================================================================
-    {//2.0.0
+    {//2.0.1
         opcode: `${category_id}.delete_menu`,
         messageId: `${category_id}.delete_menu`,
         categoryId: category_id,
@@ -216,31 +219,35 @@ menu积木名称不支持以下符号，它们都将被替换为_
             },
         },
         function: (args,util)=>{
-            // 检查冷却时间
-            let cdtime_count = Date.now() - del_menu_cdtime_from;
-            if( cdtime_count < 800 ){
-                return `Please wait ${
-                    (
-                        (800 - cdtime_count) / 1000
-                    ).toFixed(3)
-                } second, then retry.`
-            }
+            try{
+                // 检查冷却时间
+                let cdtime_count = Date.now() - del_menu_cdtime_from;
+                if( cdtime_count < 800 ){
+                    return `Please wait ${
+                        (
+                            (800 - cdtime_count) / 1000
+                        ).toFixed(3)
+                    } second, then retry.`
+                }
 
-            let name = check_name( args.name );
-            if(
-                menus.hasOwnProperty(name)
-                &&
-                window.confirm(`Delete menu ${name}`) //弹窗确认
-            ){
-                // 尝试删除（不会报错）
-                api.removeBlock(`${category_menus_id}.menu_block.${name}`);
-                Reflect.deleteProperty(
-                    menus,
-                    name
-                );
-            }
+                let name = check_name( args.name );
+                if(
+                    Object.hasOwn( menus, name )
+                    &&
+                    window.confirm(`Delete menu ${name} ?\n若一个菜单正在被使用，请不要删除它！`) //弹窗确认
+                ){
+                    // 尝试删除（不会报错）
+                    api.removeBlock(`${category_menus_id}.menu_block.${name}`);
+                    Reflect.deleteProperty(
+                        menus,
+                        name
+                    );
+                }
 
-            del_menu_cdtime_from = Date.now();
+                del_menu_cdtime_from = Date.now();
+            }catch(e){
+                return my_log_block_error( util.currentBlock.id, util.currentBlock.opcode, e )
+            }
         }
     },
 //===========================================================================
@@ -290,8 +297,9 @@ function load_category(){
 //=====================================================================================================================
 
 module.exports = class extends Extension{
-
+// 加载时序：beforeProjectLoadExtension → onInit → beforeProjectLoad
 //===========================================================================
+
     onUninit(){//2.0.0
         api.removeCategory( category_id );
         api.removeCategory( category_menus_id );
@@ -314,20 +322,21 @@ module.exports = class extends Extension{
 
 //===========================================================================
 
-    beforeProjectSave(data){//2.0.0
+    beforeProjectSave(data){//2.0.1
         // 用于保存菜单
-        console.log('extension_bddjr_custom_menu_v2_data save');
+        console.log(`${data_block_name} save`);
 
         let json = JSON.stringify( menus );
         if(json === '{}'){
             // menus为空，则无需保存
             Reflect.deleteProperty(
                 data.projectData.targets[0].blocks ,
-                'extension_bddjr_custom_menu_v2_data'
+                data_block_name
             );
+            console.log(`${data_block_name} save deleted block`);
         }else{
             // 重新创建这个积木，保存内容
-            data.projectData.targets[0].blocks.extension_bddjr_custom_menu_v2_data = {
+            data.projectData.targets[0].blocks[ data_block_name ] = {
                 "opcode": "operator_length", //获取字符串长度的积木
                 "next": null,
                 "parent": null,
@@ -336,7 +345,7 @@ module.exports = class extends Extension{
                         1,
                         [
                             10,
-                            "extension_bddjr_custom_menu_v2_data" + json
+                            data_block_name + json
                         ]
                     ]
                 },
@@ -346,14 +355,15 @@ module.exports = class extends Extension{
                 "x": 0,
                 "y": 0
             };
+            console.log(`${data_block_name} save added block OK`);
         }
     }
 
 //===========================================================================
 
-    beforeProjectLoadExtension(targets, extensions){//2.0.0
+    beforeProjectLoadExtension(targets, extensions){//2.0.1
         // 用于加载菜单数据
-        console.log('extension_bddjr_custom_menu_v2_data load');
+        console.log(`${data_block_name} load`);
 
         // 加载模块
         load_category();
@@ -361,30 +371,39 @@ module.exports = class extends Extension{
         try{
             // 读取数据字符串
             // 这里的target结构与保存时的target不一样，需要特殊适配。
-            const blocks = targets[0].blocks._blocks;
-            if( !blocks.extension_bddjr_custom_menu_v2_data ){ //undefined
+            const BLOCKS = targets[0].blocks;
+            const _blocks = BLOCKS._blocks;
+
+            if( !_blocks[ data_block_name ] ){ //undefined
                 // 找不到这个积木，通常是因为本来就是空的
-                console.log('extension_bddjr_custom_menu_v2_data load undefined');
+                console.log(`${data_block_name} load undefined`);
             }else{
                 // 找得到这个积木，继续找内容
-                let str = blocks[
-                    blocks.extension_bddjr_custom_menu_v2_data.inputs.STRING.block
+                let str = _blocks[
+                    _blocks[ data_block_name ].inputs.STRING.block
                 ].fields.TEXT.value;
+                console.log(`${data_block_name} readed data block OK`);
 
                 // 读取字符串转对象，覆盖原来的变量
                 menus = JSON.parse(
                     str.slice( str.indexOf('{') )
                 );
+                console.log(`${data_block_name} loaded data OK`);
+
+                // 数据积木已经没用了，删除它
+                BLOCKS.deleteBlock( data_block_name );
+                console.log(`${data_block_name} deleted data block OK`);
 
                 for( let i in menus ){
                     //遍历添加积木
                     add_menu_block(i); 
                 }
+                console.log(`${data_block_name} added menu blocks OK`);
 
                 return; // 退出函数
             }
         }catch(e){
-            console.error("extension_bddjr_custom_menu_v2_data can't load");
+            console.error(`${data_block_name} can't load`);
             console.error(e);
         }
         
